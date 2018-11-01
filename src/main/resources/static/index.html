@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <title>Pivotal CloudCache Chat</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=yes">
+    
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/demo.css">
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/superagent/3.5.2/superagent.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/sockjs/1/sockjs.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+
+<body>
+	<div id="demo">
+		<div id="navbar">
+			<div id="title">Pivotal CloudCache Loader</div>
+		</div>
+
+		<div id="record" class="stats_box">Record
+			<div id="record_num" class="stats_num">0</div>
+		</div>
+		<div id="memory" class="stats_box">Mem
+			<div id="memory_num" class="stats_num">N/A</div>
+		</div>
+
+		<div id="switch" style="display: none;">
+			<input id="batch_num" type='text' />
+			<button id="start_button" class="btn btn-success" onclick="toggle()">Start</button>
+		</div>
+		
+		<div id="status"></div>
+		
+		
+	</div>
+	
+	<script>
+		function toggle() {
+			if ($("#switch").has("#start_button").length) {
+				if ($("#batch_num").val()==null || $("#batch_num").val()=="" || isNaN($("#batch_num").val())) {
+					$("#batch_num").val('');
+					$("#status").show();
+					$("#status").html("Invalid number... Please retry.").fadeOut(1000);
+				} else {
+					start();
+					showStop();
+				}
+			} else {
+				stop();
+				showStart();
+			}
+		}
+		
+		function showStart() {
+			$("#batch_num").show();
+			$("#stop_button").removeClass("btn btn-danger").addClass("btn btn-success");
+			$("#stop_button").html("Start");
+			$("#stop_button").attr("id", "start_button");
+		}
+		
+		function showStop() {
+			$("#batch_num").hide();
+			$("#start_button").removeClass("btn btn-success").addClass("btn btn-danger");
+			$("#start_button").html("Stop");
+			$("#start_button").attr("id", "stop_button");
+		}
+		
+		function start() {
+			superagent.get('/start')
+			.query({ batch_size: $("#batch_num").val() })
+			.then(function(res) {
+		  	})
+		  	.catch(function (error) {
+		    	console.log(error);
+			});
+			$("#batch_num").val('');
+			
+		}
+		
+		function stop() {
+			var xmlHttp = new XMLHttpRequest();
+ 			xmlHttp.open( "GET", "/stop", false );
+ 			xmlHttp.send( null );
+ 			
+ 			return "Loading Process Stopped."
+		}
+		
+		function count() {
+			superagent.get('/count')
+			.then(function(res) {
+				$("#record_num").html(res.body);
+		  	})
+		  	.catch(function (error) {
+		    	console.log(error);
+			});
+		}
+		
+		function status() {
+			var xmlHttp = new XMLHttpRequest();
+ 			xmlHttp.open( "GET", "/status", false );
+ 			xmlHttp.send( null );
+ 			
+ 			return xmlHttp.response;
+		}
+		
+		var socket = new SockJS('/loader-websocket');
+		client = Stomp.over(socket);
+		
+		client.connect({}, function (frame) {
+			if (status() == "START") {
+				$("#batch_num").hide();
+				$("#start_button").removeClass("btn btn-success").addClass("btn btn-danger");
+				$("#start_button").html("Stop");
+				$("#start_button").attr("id", "stop_button");
+			}
+			$("#switch").show();
+			count();
+			client.subscribe('/topic/record_stats', function(msg) {
+				var record_num = JSON.parse(msg.body);
+	            $("#record_num").html(record_num);
+	        }.bind(this));
+			
+			client.subscribe('/topic/status', function(msg) {
+				if (msg.body == "START") {
+					showStop();
+				} else {
+					showStart();
+				}
+	        }.bind(this));
+		});
+		
+		
+	</script>
+</body>
+
+</html>

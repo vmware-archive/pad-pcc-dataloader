@@ -1,0 +1,8 @@
+---
+applications:
+- name: pad-pcc-loader
+  mem: 2G
+  path: target/pad-pcc-dataloader-0.0.1-SNAPSHOT.jar
+  buildpack: java_buildpack_offline
+  services:
+  - test-pcc

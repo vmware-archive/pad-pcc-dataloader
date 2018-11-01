@@ -12,17 +12,16 @@ import org.springframework.context.annotation.DependsOn;
 import org.springframework.data.gemfire.config.annotation.EnableLogging;
 import org.springframework.geode.config.annotation.UseMemberName;
 
-
 @EnableLogging(logLevel = "config")
 @UseMemberName(value = "DataLoaderClient")
 @Configuration
 public class LoaderCloudConfig {
 
-
 	@Bean(name = "transactionsRegion")
-	@DependsOn({"gemfireCache"})
+	@DependsOn({ "gemfireCache" })
 	public Region<String, PdxInstance> transactionRegion(@Autowired ClientCache clientCache) {
-		ClientRegionFactory<String, PdxInstance> transactionRegionFactory = clientCache.createClientRegionFactory(ClientRegionShortcut.PROXY);
+		ClientRegionFactory<String, PdxInstance> transactionRegionFactory = clientCache
+				.createClientRegionFactory(ClientRegionShortcut.PROXY);
 		Region<String, PdxInstance> transactionRegion = transactionRegionFactory.create("Transactions");
 		return transactionRegion;
 	}

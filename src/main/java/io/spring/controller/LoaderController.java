@@ -1,9 +1,11 @@
 package io.spring.controller;
 
-import java.io.*;
-import java.net.URL;
-import java.util.*;
-import java.util.zip.GZIPInputStream;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -25,6 +27,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.codearte.jfairy.Fairy;
+import io.codearte.jfairy.producer.company.Company;
+import io.codearte.jfairy.producer.payment.CreditCard;
+import io.codearte.jfairy.producer.person.Person;
+
 @RestController
 @DependsOn({ "gemfireCache" })
 public class LoaderController {
@@ -45,6 +52,8 @@ public class LoaderController {
 	Boolean loading_flag = false;
 
 	Boolean isLoading = false;
+	
+	Fairy fairy;
 
 	@RequestMapping(method = RequestMethod.GET, path = "/start")
 	@ResponseBody
@@ -55,23 +64,13 @@ public class LoaderController {
 		isLoading = true;
 		webSocket.convertAndSend("/topic/status", status());
 
-		String attributes = "ssn|first|last|gender|street|city|state|zip|latitude|longitude|city_pop|job|dob|account_num|profile|transaction_num|transaction_date|category|amount";
-		String[] keys = attributes.split("\\|");
-
-		String line = reader.readLine();
-		System.out.println(line);
 		int index = count() + 1;
 
-		while (line != null && loading_flag) {
-			String[] values = line.split("\\|");
+		while (loading_flag) {
 			Map<String, String> customerMap = new HashMap<>();
 
-			if (keys.length != values.length)
-				continue;
-
-			for (int i = 0; i < keys.length; i++) {
-				customerMap.put(keys[i], values[i]);
-			}
+			readAdditionalColumns(customerMap);
+				
 			PdxInstance customer = JSONFormatter.fromJSON(new JSONObject(customerMap).toString());
 
 			buffer.put(UUID.randomUUID().toString(), customer);
@@ -85,8 +84,6 @@ public class LoaderController {
 				webSocket.convertAndSend("/topic/record_stats", index);
 				buffer.clear();
 			}
-
-			line = reader.readLine();
 			index++;
 
 			// Thread.sleep(50);
@@ -135,9 +132,10 @@ public class LoaderController {
 
 	@PostConstruct
 	public void initReader() throws Exception {
-		URL FILE_LOCATION = new URL("https://s3.amazonaws.com/amey-dataset/transactions-data/trans_fact.gz");
-		InputStream inputStream = new GZIPInputStream(FILE_LOCATION.openStream());
-		reader = new BufferedReader(new InputStreamReader(inputStream));
+//		URL FILE_LOCATION = new URL("https://s3.amazonaws.com/amey-dataset/transactions-data/trans_fact.gz");
+//		InputStream inputStream = new GZIPInputStream(FILE_LOCATION.openStream());
+//		reader = new BufferedReader(new InputStreamReader(inputStream));
+		fairy = Fairy.create();
 	}
 
 	@PreDestroy
@@ -146,6 +144,64 @@ public class LoaderController {
 			reader.close();
 		if (inputStream != null)
 			inputStream.close();
+	}
+	
+	private void readAdditionalColumns(Map<String, String> customerMap) throws Exception {
+		
+
+		 Company sampleCompany = fairy.company();
+		 Person samplePerson = fairy.person();
+		 customerMap.put("company_name", sampleCompany.name());
+		 customerMap.put("company_domain", sampleCompany.domain());
+		 customerMap.put("company_email", sampleCompany.email());
+		 customerMap.put("company_url", sampleCompany.url());
+		 customerMap.put("company_street", samplePerson.getAddress().street());
+		 customerMap.put("company_street_no", samplePerson.getAddress().streetNumber());
+		 customerMap.put("company_city", samplePerson.getAddress().getCity());
+		 customerMap.put("company_postalcode", samplePerson.getAddress().getPostalCode());
+		 customerMap.put("company_building_no", samplePerson.getAddress().apartmentNumber());
+		 
+		 CreditCard creditCard =  fairy.creditCard();
+		 customerMap.put("cc_vendor", creditCard.vendor());
+		 customerMap.put("cc_expirydate_str", creditCard.expiryDateAsString());
+		 customerMap.put("cc_expirydate", creditCard.expiryDate().toString());
+		 customerMap.put("cc_street", samplePerson.getAddress().street());
+		 customerMap.put("cc_street_no", samplePerson.getAddress().streetNumber());
+		 customerMap.put("cc_city", samplePerson.getAddress().getCity());
+		 customerMap.put("cc_postalcode", samplePerson.getAddress().getPostalCode());
+		 customerMap.put("cc_building_no", samplePerson.getAddress().apartmentNumber());
+		 
+		 Person secondFamilyMember = fairy.person();
+		 
+		 customerMap.put("person_2_companyEmail", secondFamilyMember.companyEmail());
+		 customerMap.put("person_2_personalEmail", secondFamilyMember.email());
+		 customerMap.put("person_2_firstName", secondFamilyMember.firstName());
+		 customerMap.put("person_2_lastName", secondFamilyMember.lastName());
+		 customerMap.put("person_2_fullName", secondFamilyMember.fullName());
+		 customerMap.put("person_2_middleName", secondFamilyMember.middleName());
+		 customerMap.put("person_2_id", secondFamilyMember.nationalIdentificationNumber());
+		 customerMap.put("person_2_passportno", secondFamilyMember.passportNumber());
+		 customerMap.put("person_2_mobile", secondFamilyMember.telephoneNumber());
+		 customerMap.put("person_2_dob", secondFamilyMember.dateOfBirth().toString());
+		 customerMap.put("person_2_sex", secondFamilyMember.sex().toString());
+		 customerMap.put("person_2_password", secondFamilyMember.password());
+		 customerMap.put("person_2_street", secondFamilyMember.getAddress().street());
+		 customerMap.put("person_2_street_no", secondFamilyMember.getAddress().streetNumber());
+		 customerMap.put("person_2_city", secondFamilyMember.getAddress().getCity());
+		 customerMap.put("person_2_postalcode", secondFamilyMember.getAddress().getPostalCode());
+		 customerMap.put("person_2_building_no", secondFamilyMember.getAddress().apartmentNumber());
+		 
+		 
+		 CreditCard creditCard2 =  fairy.creditCard();
+		 customerMap.put("cc2_vendor", creditCard2.vendor());
+		 customerMap.put("cc2_expirydate_str", creditCard2.expiryDateAsString());
+		 customerMap.put("cc2_expirydate", creditCard2.expiryDate().toString());
+		 customerMap.put("cc2_street", secondFamilyMember.getAddress().street());
+		 customerMap.put("cc2_street_no", secondFamilyMember.getAddress().streetNumber());
+		 customerMap.put("cc2_city", secondFamilyMember.getAddress().getCity());
+		 customerMap.put("cc2_postalcode", secondFamilyMember.getAddress().getPostalCode());
+		 customerMap.put("cc2_building_no", secondFamilyMember.getAddress().apartmentNumber());
+		
 	}
 
 }

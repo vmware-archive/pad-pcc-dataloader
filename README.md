@@ -1,4 +1,4 @@
-# Data Loader with Pivotal Cloud Cache
+<h1> VMware has ended active development of this project, this repository will no longer be updated.</h1><br># Data Loader with Pivotal Cloud Cache
 
 This demo is used to load sample transaction data into GemFire/Pivotal Cloud Cache. 
 
